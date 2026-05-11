@@ -50,8 +50,8 @@ def validate_cross_prediction():
             distance_threshold=0.5,
         )
 
-        # 真实标签
-        ground_truth = read_bin(target_bin_path)
+        # 真实标签（BIN 可能比 PCD 长，取前 N 个）
+        ground_truth = read_bin(target_bin_path)[:len(predicted)]
 
         # 计算准确率
         total = len(ground_truth)
