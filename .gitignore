@@ -1,0 +1,11 @@
+# 数据文件 - 禁止提交到版本库
+data/
+
+# 常见临时文件
+*.log
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+outputs/
+tmp/
