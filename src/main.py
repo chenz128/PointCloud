@@ -29,41 +29,37 @@ def scan_series(input_dir):
     """
     扫描 input_dir，将 PCD 文件分成系列 A（step-1）和系列 B（step-5）。
 
-    系列 B：编号步长 5（0010, 0015, 0020 ...），直接等于 ego_pose sample_idx。
-    系列 A：编号步长 1（0002, 0003, 0004 ...），对应 sample_idx = 编号 × 5。
+    区分方法：有配套 .bin 文件的是系列 B，否则是系列 A。
+    系列 B：编号直接等于 ego_pose sample_idx。
+    系列 A：编号是顺序计数，sample_idx = 编号 × 5。
 
     返回:
         series_a: list of (sample_idx, timestamp_ns, filepath)，按 sample_idx 排序
         series_b: list of (sample_idx, timestamp_ns, filepath)，按 sample_idx 排序
     """
     pattern = re.compile(r'^(\d{4})_(\d+)\.pcd$')
-    all_files = {}  # (idx, ts) → filepath
+
+    series_a = []
+    series_b = []
 
     for fname in os.listdir(input_dir):
         m = pattern.match(fname)
-        if m:
-            idx = int(m.group(1))
-            ts = int(m.group(2))
-            all_files[(idx, ts)] = os.path.join(input_dir, fname)
+        if not m:
+            continue
+        idx = int(m.group(1))
+        ts = int(m.group(2))
+        fpath = os.path.join(input_dir, fname)
 
-    # 判断系列：idx 为 5 的倍数且 >= 10 → 系列 B；否则 → 系列 A
-    series_b_indices = {idx for (idx, ts) in all_files if idx % 5 == 0 and idx >= 10}
+        # 判断：有同名 .bin 文件 → 系列 B
+        bin_fname = fname.replace('.pcd', '.bin')
+        has_bin = os.path.exists(os.path.join(input_dir, bin_fname))
 
-    series_b = []
-    series_a = []
-
-    for (idx, ts), fpath in all_files.items():
-        if idx % 5 == 0 and idx >= 10:
-            # 系列 B：检查该 timestamp 不属于系列 A 混入的情况
-            # 系列 B 的时间戳 = T0 + (idx-10)/5 * 500ms
+        if has_bin:
+            # 系列 B：编号即 sample_idx
             series_b.append((idx, ts, fpath))
         else:
-            # 系列 A：顺序编号，sample_idx = idx * 5
-            sample_idx = idx * 5
-            series_a.append((sample_idx, ts, fpath))
-
-    # 有些 idx 同时出现在两套（如 0010 在 A 中顺序编号对应 sample_idx=50，
-    # 而系列 B 也有 0010）。上面逻辑已通过 idx%5==0 区分，无需额外处理。
+            # 系列 A：sample_idx = 编号 × 5
+            series_a.append((idx * 5, ts, fpath))
 
     series_a.sort(key=lambda x: x[0])
     series_b.sort(key=lambda x: x[0])
